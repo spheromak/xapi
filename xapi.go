@@ -2,11 +2,13 @@
 package xapi
 
 import (
+	"crypto/tls"
 	"fmt"
-	"github.com/kolo/xmlrpc"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/kolo/xmlrpc"
 )
 
 type XapiClient struct {
@@ -19,13 +21,13 @@ type XapiClient struct {
 }
 
 type APIResult struct {
-	Status string
-	Value interface{}
+	Status           string
+	Value            interface{}
 	ErrorDescription string
 }
 
 // Stand up a new XapiClient.  Version should probably be "1.2" unless you know what you are doing.
-func NewXapiClient(uri, username, password, version string) (client XapiClient) {
+func NewXapiClient(uri, username, password, version string, noVerify bool) (client XapiClient) {
 	client.Uri = uri
 	client.Username = username
 	client.Password = password
@@ -33,7 +35,8 @@ func NewXapiClient(uri, username, password, version string) (client XapiClient) 
 	client.rpc, _ = xmlrpc.NewClient(
 		client.Uri,
 		&http.Transport{
-			Dial: TimeoutDialer(),
+			Dial:            TimeoutDialer(),
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: noVerify},
 		})
 
 	return
@@ -150,7 +153,7 @@ func TimeoutDialer() func(net, addr string) (c net.Conn, err error) {
 //		if err != nil {
 //			fmt.Printf("%v", host)
 //		}
-func (client *XapiClient) RpcCall(result interface{}, call string, params ...interface{}) (error) {
+func (client *XapiClient) RpcCall(result interface{}, call string, params ...interface{}) error {
 	response := APIResult{Value: result}
 
 	err := client.rpc.Call(call, params, &response)
